@@ -148,6 +148,30 @@ const COMMAND_TO_MONITORING_TYPE = {
     C_BO_TA_1: "M_BO_TB_1",
 };
 
+const MONITORING_TO_COMMAND_TYPE = {
+    M_SP_NA_1: "C_SC_NA_1",
+    M_SP_TA_1: "C_SC_NA_1",
+    M_SP_TB_1: "C_SC_NA_1",
+    M_DP_NA_1: "C_DC_NA_1",
+    M_DP_TA_1: "C_DC_NA_1",
+    M_DP_TB_1: "C_DC_NA_1",
+    M_ST_NA_1: "C_RC_NA_1",
+    M_ST_TA_1: "C_RC_NA_1",
+    M_ST_TB_1: "C_RC_NA_1",
+    M_BO_NA_1: "C_BO_NA_1",
+    M_BO_TA_1: "C_BO_NA_1",
+    M_BO_TB_1: "C_BO_NA_1",
+    M_ME_NA_1: "C_SE_NA_1",
+    M_ME_TA_1: "C_SE_NA_1",
+    M_ME_TD_1: "C_SE_NA_1",
+    M_ME_NB_1: "C_SE_NB_1",
+    M_ME_TB_1: "C_SE_NB_1",
+    M_ME_TE_1: "C_SE_NB_1",
+    M_ME_NC_1: "C_SE_NC_1",
+    M_ME_TC_1: "C_SE_NC_1",
+    M_ME_TF_1: "C_SE_NC_1",
+};
+
 const COT = {
     PERIODIC: 1,
     BACKGROUND: 2,
@@ -280,20 +304,20 @@ class Iec104Connection {
     handleUFrame(apdu) {
         const code = apdu[2];
         if (code === 0x07) {
-            this.adapter.log.info(`IEC-104 STARTDT act received from ${this.role}`);
+            this.adapter.log.debug(`IEC-104 STARTDT act received from ${this.role}`);
             this.sendU(0x0b);
             this.started = true;
             if (this.onStarted) this.onStarted(this);
         } else if (code === 0x0b) {
-            this.adapter.log.info(`IEC-104 STARTDT con received from ${this.role}`);
+            this.adapter.log.debug(`IEC-104 STARTDT con received from ${this.role}`);
             this.started = true;
             if (this.onStarted) this.onStarted(this);
         } else if (code === 0x13) {
-            this.adapter.log.info(`IEC-104 STOPDT act received from ${this.role}`);
+            this.adapter.log.debug(`IEC-104 STOPDT act received from ${this.role}`);
             this.started = false;
             this.sendU(0x23);
         } else if (code === 0x23) {
-            this.adapter.log.info(`IEC-104 STOPDT con received from ${this.role}`);
+            this.adapter.log.debug(`IEC-104 STOPDT con received from ${this.role}`);
             this.started = false;
         } else if (code === 0x43) {
             this.sendU(0x83);
@@ -353,6 +377,7 @@ class Iec104Adapter extends utils.Adapter {
         this.points = [];
         this.pointsByIoa = new Map();
         this.pointsByState = new Map();
+        this.configUpdatePromise = Promise.resolve();
 
         this.on("ready", this.onReady.bind(this));
         this.on("stateChange", this.onStateChange.bind(this));
@@ -455,10 +480,25 @@ class Iec104Adapter extends utils.Adapter {
             return;
         }
 
-        if (this.protocolConfig.mode !== "slave" || !this.connection || !this.connection.started) return;
         const point = this.pointsByState.get(id);
         if (!point || !point.enabled) return;
-        this.connection.sendAsdu(this.buildSinglePointAsdu(point, state.val, COT.SPONTANEOUS));
+
+        if (!this.connection || !this.connection.started) {
+            this.log.warn(`Cannot send IEC-104 value for IOA ${point.ioa}: no active connection`);
+            return;
+        }
+        if (this.protocolConfig.mode === "slave") {
+            this.log.debug(`Sending IEC-104 spontaneous update IOA ${point.ioa} type ${this.outboundTypeForPoint(point)} value ${state.val}`);
+            this.connection.sendAsdu(this.buildSinglePointAsdu(point, state.val, COT.SPONTANEOUS));
+        } else {
+            const asdu = this.buildCommandAsdu(point, state.val);
+            if (!asdu) {
+                this.log.warn(`No IEC-104 command type available for IOA ${point.ioa} (${point.type})`);
+                return;
+            }
+            this.log.debug(`Sending IEC-104 command IOA ${point.ioa} CA ${this.commonAddressForPoint(point)} type ${this.commandTypeForPoint(point)} value ${state.val} asdu=${asdu.toString("hex")}`);
+            this.connection.sendAsdu(asdu);
+        }
     }
 
     normalizePoints(points) {
@@ -520,9 +560,13 @@ class Iec104Adapter extends utils.Adapter {
     }
 
     async subscribeConfiguredStates() {
-        if (this.protocolConfig.mode === "slave") {
+        if (this.protocolConfig.mode === "slave" || this.protocolConfig.mode === "master") {
             for (const point of this.points) {
-                if (point.enabled) await this.subscribeForeignStatesAsync(this.fullStateIdForPoint(point));
+                if (point.enabled) {
+                    const id = this.fullStateIdForPoint(point);
+                    await this.subscribeForeignStatesAsync(id);
+                    this.log.debug(`Subscribed IEC-104 ${this.protocolConfig.mode} data point ${id} for IOA ${point.ioa}`);
+                }
             }
         }
     }
@@ -543,7 +587,7 @@ class Iec104Adapter extends utils.Adapter {
 
     startMaster() {
         const cfg = this.protocolConfig;
-        this.log.info(`Starting IEC-104 master client to ${cfg.host}:${cfg.port}`);
+        this.log.debug(`Starting IEC-104 master client to ${cfg.host}:${cfg.port}`);
         const socket = net.createConnection({ host: cfg.host, port: cfg.port });
         const connectTimer = setTimeout(() => {
             this.log.warn(`IEC-104 connect timeout to ${cfg.host}:${cfg.port}`);
@@ -569,7 +613,7 @@ class Iec104Adapter extends utils.Adapter {
 
     startSlave() {
         const cfg = this.protocolConfig;
-        this.log.info(`Starting IEC-104 slave server on ${cfg.bind}:${cfg.port}`);
+        this.log.debug(`Starting IEC-104 slave server on ${cfg.bind}:${cfg.port}`);
         this.server = net.createServer(socket => {
             if (this.connection && !this.connection.closed) {
                 this.log.warn("Rejecting additional IEC-104 client because one client is already connected");
@@ -622,7 +666,7 @@ class Iec104Adapter extends utils.Adapter {
     }
 
     sendGeneralInterrogation(conn) {
-        this.log.info("Sending IEC-104 general interrogation");
+        this.log.debug("Sending IEC-104 general interrogation");
         conn.sendAsdu(this.buildAsdu(TYPE.C_IC_NA_1, false, COT.ACTIVATION, this.protocolConfig.commonAddress, [
             { ioa: 0, data: Buffer.from([20]) },
         ]));
@@ -638,13 +682,18 @@ class Iec104Adapter extends utils.Adapter {
                 return;
             }
 
-            if (COMMAND_TYPE_IDS.has(decoded.typeId)) {
+            if (COMMAND_TYPE_IDS.has(decoded.typeId) && this.protocolConfig.mode === "slave") {
                 await this.handleCommand(decoded, conn);
                 return;
             }
 
+            if (COMMAND_TYPE_IDS.has(decoded.typeId)) {
+                await this.handleCommandResponse(decoded);
+                return;
+            }
+
             for (const obj of decoded.objects) {
-                await this.updatePointFromRemote(decoded.typeId, obj);
+                await this.updatePointFromRemote(decoded.typeId, obj, decoded.commonAddress);
             }
         } catch (error) {
             this.log.warn(`Cannot handle IEC-104 ASDU: ${error.message}`);
@@ -653,11 +702,11 @@ class Iec104Adapter extends utils.Adapter {
 
     async handleGeneralInterrogation(decoded, conn) {
         if (this.protocolConfig.mode !== "slave") {
-            this.log.info("General interrogation response marker received");
+            this.log.debug("General interrogation response marker received");
             return;
         }
 
-        this.log.info("General interrogation received");
+        this.log.debug("General interrogation received");
         conn.sendAsdu(this.buildAsdu(TYPE.C_IC_NA_1, false, COT.ACTIVATION_CONFIRMATION, decoded.commonAddress, [
             { ioa: 0, data: Buffer.from([20]) },
         ]));
@@ -693,7 +742,23 @@ class Iec104Adapter extends utils.Adapter {
         conn.sendAsdu(this.buildAsdu(decoded.typeId, false, COT.ACTIVATION_CONFIRMATION, decoded.commonAddress, decoded.objects));
     }
 
-    async updatePointFromRemote(typeId, obj) {
+    async handleCommandResponse(decoded) {
+        const typeName = TYPE_NAME[decoded.typeId] || decoded.typeId;
+        this.log.debug(`IEC-104 command response received type=${typeName} cot=${decoded.cot} objects=${decoded.objects.length}`);
+
+        if (decoded.cot !== COT.ACTIVATION_CONFIRMATION) return;
+
+        for (const obj of decoded.objects) {
+            const point = this.pointsByIoa.get(obj.ioa);
+            if (!point) continue;
+
+            const stateId = this.fullStateIdForPoint(point);
+            const state = await this.getForeignStateAsync(stateId);
+            if (state) await this.setForeignStateAsync(stateId, state.val, true);
+        }
+    }
+
+    async updatePointFromRemote(typeId, obj, commonAddress) {
         const point = this.pointsByIoa.get(obj.ioa) || {
             enabled: true,
             name: `IOA ${obj.ioa}`,
@@ -704,10 +769,16 @@ class Iec104Adapter extends utils.Adapter {
             stateId: `points.${obj.ioa}`,
             writable: false,
             unit: "",
+            commonAddress,
         };
+
+        point.commonAddress = commonAddress;
 
         if (!this.pointsByIoa.has(obj.ioa)) {
             this.pointsByIoa.set(obj.ioa, point);
+            this.pointsByState.set(this.fullStateIdForPoint(point), point);
+            this.points.push(point);
+            await this.addDiscoveredPointToConfig(point);
             await this.extendObjectAsync(`points.${obj.ioa}`, {
                 type: "state",
                 common: {
@@ -720,10 +791,44 @@ class Iec104Adapter extends utils.Adapter {
                 },
                 native: { ioa: obj.ioa, iecType: point.type },
             });
+            await this.subscribeForeignStatesAsync(this.fullStateIdForPoint(point));
         }
 
         const value = this.applyScale(point, this.decodeInformationValue(typeId, obj.data));
         await this.setForeignStateAsync(this.fullStateIdForPoint(point), value, true);
+    }
+
+    async addDiscoveredPointToConfig(point) {
+        const update = async () => {
+            const instanceId = `system.adapter.${this.namespace}`;
+            const obj = await this.getForeignObjectAsync(instanceId);
+            if (!obj || !obj.native) return;
+
+            const points = Array.isArray(obj.native.points) ? obj.native.points : [];
+            if (points.some(existing => Number(existing && existing.ioa) === Number(point.ioa))) return;
+
+            obj.native.points = [
+                ...points,
+                {
+                    enabled: true,
+                    name: point.name,
+                    ioa: point.ioa,
+                    type: TYPE[point.type] ? point.type : "M_ME_NC_1",
+                    stateId: point.stateId,
+                    writable: point.writable,
+                    unit: point.unit,
+                    factor: point.factor,
+                    offset: point.offset,
+                },
+            ];
+
+            await this.setForeignObjectAsync(instanceId, obj);
+            this.config.points = obj.native.points;
+            this.log.debug(`Added discovered IEC-104 data point IOA ${point.ioa} to adapter settings`);
+        };
+
+        this.configUpdatePromise = this.configUpdatePromise.then(update, update);
+        await this.configUpdatePromise;
     }
 
     applyScale(point, raw) {
@@ -802,9 +907,24 @@ class Iec104Adapter extends utils.Adapter {
         const outboundType = this.outboundTypeForPoint(point);
         const typeId = TYPE[outboundType] || TYPE.M_ME_NC_1;
         const raw = this.removeScale(point, value);
-        return this.buildAsdu(typeId, false, cot, this.protocolConfig.commonAddress, [
+        return this.buildAsdu(typeId, false, cot, this.commonAddressForPoint(point), [
             { ioa: point.ioa, data: this.encodeInformationValue(typeId, raw) },
         ]);
+    }
+
+    buildCommandAsdu(point, value) {
+        const commandType = this.commandTypeForPoint(point);
+        if (!commandType) return null;
+
+        const typeId = TYPE[commandType];
+        const raw = this.removeScale(point, value);
+        return this.buildAsdu(typeId, false, COT.ACTIVATION, this.commonAddressForPoint(point), [
+            { ioa: point.ioa, data: this.encodeInformationValue(typeId, raw) },
+        ]);
+    }
+
+    commonAddressForPoint(point) {
+        return Number(point.commonAddress || this.protocolConfig.commonAddress);
     }
 
     outboundTypeForPoint(point) {
@@ -812,6 +932,12 @@ class Iec104Adapter extends utils.Adapter {
             return COMMAND_TO_MONITORING_TYPE[point.type];
         }
         return point.type;
+    }
+
+    commandTypeForPoint(point) {
+        const meta = TYPE_META[point.type];
+        if (meta && meta.command) return point.type;
+        return MONITORING_TO_COMMAND_TYPE[point.type] || null;
     }
 
     infoElementSize(typeId) {

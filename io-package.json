@@ -1,8 +1,32 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.5",
+    "version": "0.1.11",
     "news": {
+      "0.1.11": {
+        "en": "Move normal IEC-104 operation diagnostics from info to debug logging",
+        "de": "Normale IEC-104 Betriebsdiagnosen von Info- auf Debug-Logging umgestellt"
+      },
+      "0.1.10": {
+        "en": "Remember received common addresses per IOA and use them for master commands",
+        "de": "Empfangene Common Addresses werden je IOA gemerkt und fuer Master-Befehle verwendet"
+      },
+      "0.1.9": {
+        "en": "Log master command confirmations and acknowledge states after activation confirmation",
+        "de": "Master-Befehlsbestaetigungen werden protokolliert und States nach Aktivierungsbestaetigung quittiert"
+      },
+      "0.1.8": {
+        "en": "Add diagnostics for master write commands and configured data point subscriptions",
+        "de": "Diagnosemeldungen fuer Master-Schreibbefehle und abonnierte Datenpunkte ergaenzt"
+      },
+      "0.1.7": {
+        "en": "Send IEC-104 command ASDUs when master data point states are changed",
+        "de": "IEC-104 Befehls-ASDUs werden gesendet, wenn Datenpunkte im Master geaendert werden"
+      },
+      "0.1.6": {
+        "en": "Add automatically discovered master data points to the adapter settings table",
+        "de": "Automatisch gefundene Master-Datenpunkte werden in die Adapter-Einstellungstabelle uebernommen"
+      },
       "0.1.5": {
         "en": "Use native table import and export buttons for data point configuration",
         "de": "Native Tabellen-Import- und Export-Schaltflaechen fuer die Datenpunktkonfiguration verwendet"
