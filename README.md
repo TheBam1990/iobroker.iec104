@@ -13,6 +13,7 @@ Adapter für die IEC-60870-5-104-Kommunikation in ioBroker. Der Adapter kann als
 - Konfigurierbare Datenpunkttabelle mit IOA, Typ, State-ID, Einheit, Faktor und Offset.
 - Automatische Anlage unbekannter IOAs im Master-Modus, wenn neue Werte empfangen werden.
 - Separater Objektbereich `IV-Points` für das IEC-104-Qualitybit `IV` (`invalid` / nicht aktuell).
+- Separater Objektbereich `Time-Points` für den letzten IEC-104-Zeitstempel bzw. Empfangszeitpunkt je Datenpunkt.
 - Schreiben von Befehls-ASDUs im Master-Modus, wenn konfigurierte ioBroker-States geändert werden.
 - Senden spontaner Werte im Slave-Modus, wenn konfigurierte ioBroker-States geändert werden.
 - TSV-Import und TSV-Export der Datenpunkttabelle über die Admin-Oberfläche.
@@ -31,14 +32,14 @@ Adapter für die IEC-60870-5-104-Kommunikation in ioBroker. Der Adapter kann als
 Lokales Testpaket installieren:
 
 ```bash
-iobroker url /path/to/iobroker.iec104-0.1.14.tgz
+iobroker url /path/to/iobroker.iec104-0.1.16.tgz
 iobroker add iec104
 ```
 
 Unter Windows zum Beispiel:
 
 ```powershell
-iobroker url C:\path\to\iobroker.iec104-0.1.14.tgz
+iobroker url C:\path\to\iobroker.iec104-0.1.16.tgz
 iobroker add iec104
 ```
 
@@ -74,7 +75,15 @@ Zusätzlich legt der Adapter für jeden Datenpunkt einen Status unter `iec104.0.
 
 Ausgewertet wird `IV` für alle vom Adapter unterstützten Melde-/Messwertklassen mit Quality-Bit, inklusive Einzel-/Doppelmeldungen, Stufen, Bitstrings, Messwerte, Zähler, gepackte Meldungen und Schutzereignisse mit oder ohne Zeitstempel. System-, Befehls- und Dateitypen haben kein einheitliches IEC-104-IV-Qualitybit; für diese Punkte wird kein künstlicher IV-Wert erzeugt.
 
+Zusätzlich legt der Adapter für jeden Datenpunkt einen Zeitstatus unter `iec104.0.Time-Points.<IOA>` an:
+
+- Bei IEC-104-Typen mit CP56-Zeitstempel wird der vollständige mitgesendete IEC-Zeitstempel als ISO-Zeit gespeichert.
+- Bei IEC-104-Typen mit CP24-Zeitstempel wird Minute/Sekunde/Millisekunde aus IEC übernommen und mit Datum/Stunde des Empfangs ergänzt, weil CP24 kein vollständiges Datum enthält.
+- Bei IEC-104-Typen ohne Zeitstempel wird der lokale Empfangszeitpunkt gespeichert.
+
 Wenn ein konfigurierter State im Master-Modus geändert wird, sendet der Adapter eine passende Befehls-ASDU an die Gegenstelle. Beispiel: Aus `M_SP_NA_1` wird beim Schreiben ein `C_SC_NA_1`.
+
+Neu entdeckte IOAs werden sofort als `points`, `IV-Points` und `Time-Points` angelegt. Das Zurückschreiben in die Adapter-Konfiguration erfolgt gebündelt nach kurzer Wartezeit, damit eine laufende Generalabfrage nicht durch ioBroker-Neustarts der Instanz unterbrochen wird.
 
 ### Slave / Unterstation
 
@@ -124,6 +133,7 @@ Der Adapter legt diese allgemeinen States an:
 - `iec104.0.commands.general_interrogation`: Schalter zum manuellen Auslösen einer Generalabfrage im Master-Modus.
 - `iec104.0.points.<IOA>`: automatisch oder über die Datenpunkttabelle angelegte Datenpunkte.
 - `iec104.0.IV-Points.<IOA>`: IV-Status des Datenpunkts aus dem IEC-104-Qualitybyte.
+- `iec104.0.Time-Points.<IOA>`: letzter IEC-Zeitstempel bzw. Empfangszeitpunkt des Datenpunkts als ISO-Zeit.
 
 ## Unterstützte IEC-104-Typen
 
@@ -215,6 +225,7 @@ Verbindung steht, aber keine Werte:
 - Generalabfrage manuell über `commands.general_interrogation` auslösen.
 - Datenpunkttypen mit der Dokumentation der Gegenstelle abgleichen.
 - Log-Level vorübergehend auf `debug` stellen.
+- Wenn die Gegenstelle auf die Generalabfrage mit `UNKNOWN_CA` antwortet, wiederholt der Adapter die Abfrage automatisch mit der empfangenen Common Address.
 
 Befehle werden nicht ausgeführt:
 
@@ -234,6 +245,15 @@ Unerwartete Werte:
 IEC 60870-5-104 wird in Automatisierungs- und Energiesystemen eingesetzt. Vor dem Anschluss an produktive Systeme sollten Konfiguration, Schreibrechte und Befehlsrichtung in einer Testumgebung validiert werden. Schreibfunktionen sollten nur für eindeutig benötigte IOAs aktiviert werden.
 
 ## Changelog
+
+### 0.1.16
+
+- Neu entdeckte Datenpunkte werden gebündelt in die Adapter-Konfiguration geschrieben, damit die Generalabfrage nicht durch Instanz-Neustarts abbricht.
+- `UNKNOWN_CA` bei Generalabfrage wird erkannt; der Adapter wiederholt die Abfrage mit der empfangenen Common Address.
+
+### 0.1.15
+
+- `Time-Points.<IOA>` für IEC-104-Zeitstempel bzw. Empfangszeitpunkt ergänzt.
 
 ### 0.1.14
 

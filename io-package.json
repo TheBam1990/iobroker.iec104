@@ -1,8 +1,16 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.14",
+    "version": "0.1.16",
     "news": {
+      "0.1.16": {
+        "en": "Batch discovered data point persistence to avoid restarts during general interrogation and retry with learned common address on UNKNOWN_CA",
+        "de": "Buendelt das Speichern entdeckter Datenpunkte, verhindert Neustarts waehrend der Generalabfrage und wiederholt bei UNKNOWN_CA mit erkannter Common Address"
+      },
+      "0.1.15": {
+        "en": "Add Time-Points states with IEC-104 CP24/CP56 timestamps or receive time fallback",
+        "de": "Ergaenzt Time-Points-States mit IEC-104-CP24/CP56-Zeitstempeln oder Empfangszeit als Fallback"
+      },
       "0.1.14": {
         "en": "Extend IV quality decoding to all supported IEC-104 monitoring types with quality bits",
         "de": "Erweitert die IV-Quality-Auswertung auf alle unterstuetzten IEC-104-Meldetypen mit Quality-Bits"

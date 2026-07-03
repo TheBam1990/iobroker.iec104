@@ -1,6 +1,6 @@
 {
   "name": "iobroker.iec104",
-  "version": "0.1.14",
+  "version": "0.1.16",
   "description": "ioBroker adapter for IEC 60870-5-104 master and slave communication",
   "author": "ioBroker User",
   "homepage": "https://github.com/your-name/ioBroker.iec104",

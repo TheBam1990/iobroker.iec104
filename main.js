@@ -378,6 +378,9 @@ class Iec104Adapter extends utils.Adapter {
         this.pointsByIoa = new Map();
         this.pointsByState = new Map();
         this.configUpdatePromise = Promise.resolve();
+        this.discoveredPointsToPersist = new Map();
+        this.discoveredConfigTimer = null;
+        this.learnedCommonAddress = null;
 
         this.on("ready", this.onReady.bind(this));
         this.on("stateChange", this.onStateChange.bind(this));
@@ -461,6 +464,7 @@ class Iec104Adapter extends utils.Adapter {
         try {
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
             if (this.generalInterrogationTimer) clearInterval(this.generalInterrogationTimer);
+            if (this.discoveredConfigTimer) clearTimeout(this.discoveredConfigTimer);
             if (this.connection) this.connection.close();
             if (this.server) this.server.close();
             callback();
@@ -534,6 +538,10 @@ class Iec104Adapter extends utils.Adapter {
         return `IV-Points.${point.ioa}`;
     }
 
+    timeStateIdForPoint(point) {
+        return `Time-Points.${point.ioa}`;
+    }
+
     async createPointObjects() {
         await this.setObjectNotExistsAsync("points", {
             type: "channel",
@@ -543,6 +551,11 @@ class Iec104Adapter extends utils.Adapter {
         await this.setObjectNotExistsAsync("IV-Points", {
             type: "channel",
             common: { name: "IEC-104 IV status points" },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("Time-Points", {
+            type: "channel",
+            common: { name: "IEC-104 time stamp points" },
             native: {},
         });
 
@@ -565,6 +578,7 @@ class Iec104Adapter extends utils.Adapter {
                 });
             }
             await this.ensureIvPointObject(point);
+            await this.ensureTimePointObject(point);
             this.pointsByState.set(this.fullStateIdForPoint(point), point);
         }
     }
@@ -581,6 +595,21 @@ class Iec104Adapter extends utils.Adapter {
                 def: false,
             },
             native: { ioa: point.ioa, source: "quality.iv" },
+        });
+    }
+
+    async ensureTimePointObject(point) {
+        await this.extendObjectAsync(this.timeStateIdForPoint(point), {
+            type: "state",
+            common: {
+                name: `${point.name} timestamp`,
+                type: "string",
+                role: "date",
+                read: true,
+                write: false,
+                def: "",
+            },
+            native: { ioa: point.ioa, source: "iec104.timestamp" },
         });
     }
 
@@ -690,9 +719,10 @@ class Iec104Adapter extends utils.Adapter {
         }
     }
 
-    sendGeneralInterrogation(conn) {
-        this.log.debug("Sending IEC-104 general interrogation");
-        conn.sendAsdu(this.buildAsdu(TYPE.C_IC_NA_1, false, COT.ACTIVATION, this.protocolConfig.commonAddress, [
+    sendGeneralInterrogation(conn, commonAddress = null) {
+        const ca = Number(commonAddress || this.learnedCommonAddress || this.protocolConfig.commonAddress);
+        this.log.debug(`Sending IEC-104 general interrogation CA ${ca}`);
+        conn.sendAsdu(this.buildAsdu(TYPE.C_IC_NA_1, false, COT.ACTIVATION, ca, [
             { ioa: 0, data: Buffer.from([20]) },
         ]));
     }
@@ -703,6 +733,12 @@ class Iec104Adapter extends utils.Adapter {
             if (!decoded) return;
 
             if (decoded.typeId === TYPE.C_IC_NA_1) {
+                if (decoded.cot === COT.UNKNOWN_CA && decoded.commonAddress && decoded.commonAddress !== this.protocolConfig.commonAddress) {
+                    this.learnedCommonAddress = decoded.commonAddress;
+                    this.log.warn(`General interrogation rejected for configured CA ${this.protocolConfig.commonAddress}; retrying with received CA ${decoded.commonAddress}`);
+                    if (conn && conn.started) this.sendGeneralInterrogation(conn, decoded.commonAddress);
+                    return;
+                }
                 await this.handleGeneralInterrogation(decoded, conn);
                 return;
             }
@@ -803,7 +839,7 @@ class Iec104Adapter extends utils.Adapter {
             this.pointsByIoa.set(obj.ioa, point);
             this.pointsByState.set(this.fullStateIdForPoint(point), point);
             this.points.push(point);
-            await this.addDiscoveredPointToConfig(point);
+            this.scheduleDiscoveredPointConfigUpdate(point);
             await this.extendObjectAsync(`points.${obj.ioa}`, {
                 type: "state",
                 common: {
@@ -817,42 +853,63 @@ class Iec104Adapter extends utils.Adapter {
                 native: { ioa: obj.ioa, iecType: point.type },
             });
             await this.ensureIvPointObject(point);
+            await this.ensureTimePointObject(point);
             await this.subscribeForeignStatesAsync(this.fullStateIdForPoint(point));
         }
 
+        const receiveTime = new Date();
         const value = this.applyScale(point, this.decodeInformationValue(typeId, obj.data));
         await this.setForeignStateAsync(this.fullStateIdForPoint(point), value, true);
         const iv = this.decodeInvalidQuality(typeId, obj.data);
         if (iv !== null) await this.setStateAsync(this.ivStateIdForPoint(point), iv, true);
+        const timestamp = this.decodeInformationTimestamp(typeId, obj.data, receiveTime);
+        await this.setStateAsync(this.timeStateIdForPoint(point), timestamp.toISOString(), true);
     }
 
-    async addDiscoveredPointToConfig(point) {
+    scheduleDiscoveredPointConfigUpdate(point) {
+        this.discoveredPointsToPersist.set(Number(point.ioa), { ...point });
+        if (this.discoveredConfigTimer) clearTimeout(this.discoveredConfigTimer);
+        this.discoveredConfigTimer = setTimeout(() => {
+            this.discoveredConfigTimer = null;
+            this.persistDiscoveredPointsToConfig().catch(error => {
+                this.log.warn(`Cannot persist discovered IEC-104 data points: ${error.message}`);
+            });
+        }, 15000);
+    }
+
+    async persistDiscoveredPointsToConfig() {
+        if (!this.discoveredPointsToPersist.size) return;
+        const pending = [...this.discoveredPointsToPersist.values()];
+        this.discoveredPointsToPersist.clear();
+
         const update = async () => {
             const instanceId = `system.adapter.${this.namespace}`;
             const obj = await this.getForeignObjectAsync(instanceId);
             if (!obj || !obj.native) return;
 
             const points = Array.isArray(obj.native.points) ? obj.native.points : [];
-            if (points.some(existing => Number(existing && existing.ioa) === Number(point.ioa))) return;
+            const knownIoas = new Set(points.map(existing => Number(existing && existing.ioa)));
+            const additions = pending.filter(point => !knownIoas.has(Number(point.ioa)));
+            if (!additions.length) return;
 
             obj.native.points = [
                 ...points,
-                {
+                ...additions.map(point => ({
                     enabled: true,
-                    name: point.name,
-                    ioa: point.ioa,
+                    name: String(point.name || `IOA ${point.ioa}`),
+                    ioa: Number(point.ioa),
                     type: TYPE[point.type] ? point.type : "M_ME_NC_1",
-                    stateId: point.stateId,
-                    writable: point.writable,
-                    unit: point.unit,
-                    factor: point.factor,
-                    offset: point.offset,
-                },
+                    stateId: point.stateId || `points.${point.ioa}`,
+                    writable: Boolean(point.writable),
+                    unit: point.unit || "",
+                    factor: Number(point.factor || 1),
+                    offset: Number(point.offset || 0),
+                })),
             ];
 
             await this.setForeignObjectAsync(instanceId, obj);
             this.config.points = obj.native.points;
-            this.log.debug(`Added discovered IEC-104 data point IOA ${point.ioa} to adapter settings`);
+            this.log.info(`Added ${additions.length} discovered IEC-104 data point(s) to adapter settings`);
         };
 
         this.configUpdatePromise = this.configUpdatePromise.then(update, update);
@@ -952,7 +1009,7 @@ class Iec104Adapter extends utils.Adapter {
     }
 
     commonAddressForPoint(point) {
-        return Number(point.commonAddress || this.protocolConfig.commonAddress);
+        return Number(point.commonAddress || this.learnedCommonAddress || this.protocolConfig.commonAddress);
     }
 
     outboundTypeForPoint(point) {
@@ -1064,6 +1121,21 @@ class Iec104Adapter extends utils.Adapter {
     decodeInvalidQuality(typeId, data) {
         const quality = this.decodeQualityByte(typeId, data);
         return quality === null ? null : Boolean(quality & 0x80);
+    }
+
+    decodeInformationTimestamp(typeId, data, receiveTime = new Date()) {
+        const name = TYPE_NAME[typeId];
+        const meta = TYPE_META[name];
+        const timeLength = this.timeSize(meta);
+        if (!timeLength) return receiveTime;
+
+        const elementSize = this.infoElementSize(typeId);
+        if (elementSize < timeLength || data.length < timeLength) return receiveTime;
+
+        const start = Math.max(0, elementSize - timeLength);
+        if (data.length < start + timeLength) return receiveTime;
+        const timeData = data.subarray(start, start + timeLength);
+        return meta.time === "cp56" ? this.decodeCp56Time(timeData) : this.decodeCp24Time(timeData, receiveTime);
     }
 
     decodeQualityByte(typeId, data) {
@@ -1223,6 +1295,21 @@ class Iec104Adapter extends utils.Adapter {
         buf.writeUInt16LE(ms, 0);
         buf[2] = date.getMinutes();
         return buf;
+    }
+
+    decodeCp24Time(data, receiveTime = new Date()) {
+        if (data.length < 3) return receiveTime;
+        const ms = data.readUInt16LE(0);
+        const second = Math.floor(ms / 1000);
+        const milli = ms % 1000;
+        const minute = data[2] & 0x3f;
+        const date = new Date(receiveTime);
+        date.setMinutes(minute, second, milli);
+
+        const diff = date.getTime() - receiveTime.getTime();
+        if (diff > 30 * 60 * 1000) date.setHours(date.getHours() - 1);
+        if (diff < -30 * 60 * 1000) date.setHours(date.getHours() + 1);
+        return date;
     }
 
     encodeCp56Time(date) {
