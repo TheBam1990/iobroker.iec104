@@ -169,3 +169,87 @@ Commands are not executed:
 - In slave mode, disable `Read only`.
 - Mark the point as `Writable`.
 - Check that the state was written with `ack=false`.
+
+## Changelog
+
+### 0.1.17
+
+- Reorganizes states by ASDU with Value/IV/NT/Time/COT folders.
+- Exposes NT quality and COT text states.
+- Improves master reconnect handling.
+
+### 0.1.16
+
+- Batches discovered data point persistence.
+- Avoids restarts during general interrogation.
+- Retries with the learned common address on `UNKNOWN_CA`.
+
+### 0.1.15
+
+- Adds Time-Points states with IEC-104 CP24/CP56 timestamps.
+- Uses receive time as fallback.
+
+### 0.1.14
+
+- Extends IV quality decoding to all supported IEC-104 monitoring types with quality bits.
+
+### 0.1.13
+
+- Exposes the IEC-104 IV quality bit as separate IV-Points states for each data point.
+
+### 0.1.12
+
+- Declares Windows support.
+- Makes npm package contents explicit.
+
+### 0.1.11
+
+- Moves normal IEC-104 operation diagnostics from info to debug logging.
+
+### 0.1.10
+
+- Remembers received common addresses per IOA.
+- Uses remembered common addresses for master commands.
+
+### 0.1.9
+
+- Logs master command confirmations.
+- Acknowledges states after activation confirmation.
+
+### 0.1.8
+
+- Adds diagnostics for master write commands.
+- Adds diagnostics for configured data point subscriptions.
+
+### 0.1.7
+
+- Sends IEC-104 command ASDUs when master data point states are changed.
+
+### 0.1.6
+
+- Adds automatically discovered master data points to the adapter settings table.
+
+### 0.1.5
+
+- Uses native table import and export buttons for data point configuration.
+
+### 0.1.4
+
+- Adds TSV import and export fields for data point configuration.
+
+### 0.1.3
+
+- Maps configured command data points to matching monitoring ASDUs in slave responses.
+
+### 0.1.2
+
+- Updates generated data point objects when configuration changes.
+
+### 0.1.1
+
+- Adds complete IEC-104 type selection with type numbers.
+- Extends parser support.
+
+### 0.1.0
+
+- Initial IEC 60870-5-104 adapter with master and slave modes.

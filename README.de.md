@@ -169,3 +169,87 @@ Befehle werden nicht ausgefuehrt:
 - Im Slave-Modus `Nur lesen` deaktivieren.
 - Datenpunkt als `Schreibbar` markieren.
 - Pruefen, ob der State mit `ack=false` geschrieben wurde.
+
+## Changelog
+
+### 0.1.17
+
+- Ordnet States nach ASDU mit Value/IV/NT/Time/COT-Ordnern.
+- Stellt NT-Quality und COT-Klartext bereit.
+- Verbessert den Master-Reconnect.
+
+### 0.1.16
+
+- Buendelt das Speichern entdeckter Datenpunkte.
+- Verhindert Neustarts waehrend der Generalabfrage.
+- Wiederholt bei `UNKNOWN_CA` mit erkannter Common Address.
+
+### 0.1.15
+
+- Ergaenzt Time-Points-States mit IEC-104-CP24/CP56-Zeitstempeln.
+- Nutzt die Empfangszeit als Fallback.
+
+### 0.1.14
+
+- Erweitert die IV-Quality-Auswertung auf alle unterstuetzten IEC-104-Meldetypen mit Quality-Bits.
+
+### 0.1.13
+
+- Stellt das IEC-104-IV-Quality-Bit als separate IV-Points-States je Datenpunkt bereit.
+
+### 0.1.12
+
+- Deklariert Windows-Unterstuetzung.
+- Legt den npm-Paketinhalt explizit fest.
+
+### 0.1.11
+
+- Stellt normale IEC-104-Betriebsdiagnosen von Info- auf Debug-Logging um.
+
+### 0.1.10
+
+- Merkt empfangene Common Addresses je IOA.
+- Nutzt die gemerkten Common Addresses fuer Master-Befehle.
+
+### 0.1.9
+
+- Protokolliert Master-Befehlsbestaetigungen.
+- Quittiert States nach Aktivierungsbestaetigung.
+
+### 0.1.8
+
+- Ergaenzt Diagnosemeldungen fuer Master-Schreibbefehle.
+- Ergaenzt Diagnosemeldungen fuer abonnierte Datenpunkte.
+
+### 0.1.7
+
+- Sendet IEC-104-Befehls-ASDUs, wenn Datenpunkte im Master geaendert werden.
+
+### 0.1.6
+
+- Uebernimmt automatisch gefundene Master-Datenpunkte in die Adapter-Einstellungstabelle.
+
+### 0.1.5
+
+- Verwendet native Tabellen-Import- und Export-Schaltflaechen fuer die Datenpunktkonfiguration.
+
+### 0.1.4
+
+- Fuegt TSV-Import und TSV-Export fuer die Datenpunktkonfiguration hinzu.
+
+### 0.1.3
+
+- Sendet konfigurierte Befehls-Datenpunkte in Slave-Antworten als passende Melde-ASDUs.
+
+### 0.1.2
+
+- Aktualisiert generierte Datenpunkt-Objekte bei Konfigurationsaenderungen.
+
+### 0.1.1
+
+- Ergaenzt die vollstaendige IEC-104-Typauswahl mit Typnummern.
+- Erweitert den Parser-Support.
+
+### 0.1.0
+
+- Erste IEC 60870-5-104 Adapterversion mit Master- und Slave-Modus.

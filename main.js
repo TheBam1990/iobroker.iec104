@@ -190,6 +190,45 @@ const COT = {
     UNKNOWN_IOA: 47,
 };
 
+const COT_TEXT = {
+    1: "periodic",
+    2: "background scan",
+    3: "spontaneous",
+    4: "initialized",
+    5: "request",
+    6: "activation",
+    7: "activation confirmation",
+    8: "deactivation",
+    9: "deactivation confirmation",
+    10: "activation termination",
+    20: "interrogated by station",
+    21: "interrogated by group 1",
+    22: "interrogated by group 2",
+    23: "interrogated by group 3",
+    24: "interrogated by group 4",
+    25: "interrogated by group 5",
+    26: "interrogated by group 6",
+    27: "interrogated by group 7",
+    28: "interrogated by group 8",
+    29: "interrogated by group 9",
+    30: "interrogated by group 10",
+    31: "interrogated by group 11",
+    32: "interrogated by group 12",
+    33: "interrogated by group 13",
+    34: "interrogated by group 14",
+    35: "interrogated by group 15",
+    36: "interrogated by group 16",
+    37: "counter interrogated by station",
+    38: "counter interrogated by group 1",
+    39: "counter interrogated by group 2",
+    40: "counter interrogated by group 3",
+    41: "counter interrogated by group 4",
+    44: "unknown type identification",
+    45: "unknown cause of transmission",
+    46: "unknown common address of ASDU",
+    47: "unknown information object address",
+};
+
 class Iec104Connection {
     constructor(adapter, socket, role) {
         this.adapter = adapter;
@@ -518,11 +557,17 @@ class Iec104Adapter extends utils.Adapter {
                 unit: String(point.unit || ""),
                 factor: Number(point.factor || 1),
                 offset: Number(point.offset || 0),
+                commonAddress: point.commonAddress === undefined || point.commonAddress === null || point.commonAddress === ""
+                    ? null
+                    : Number(point.commonAddress),
             }));
     }
 
     stateIdForPoint(point) {
-        return point.stateId || `points.${point.ioa}`;
+        if (!point.stateId || String(point.stateId).startsWith("points.")) {
+            return this.valueStateIdForPoint(point);
+        }
+        return point.stateId;
     }
 
     fullStateIdForPoint(point) {
@@ -531,38 +576,65 @@ class Iec104Adapter extends utils.Adapter {
     }
 
     isOwnStateId(id) {
-        return id.startsWith("points.") || id.startsWith("commands.") || id.startsWith("info.");
+        return id.startsWith("points.")
+            || id.startsWith("Value-Points.")
+            || id.startsWith("IV-Points.")
+            || id.startsWith("NT-Points.")
+            || id.startsWith("Time-Points.")
+            || id.startsWith("COT-Points.")
+            || id.startsWith("ASDU-")
+            || id.startsWith("commands.")
+            || id.startsWith("info.");
+    }
+
+    asduChannelForPoint(point) {
+        const ca = this.commonAddressForPoint(point);
+        return `ASDU-${ca}`;
+    }
+
+    pointMapKey(commonAddress, ioa) {
+        return `${Number(commonAddress || this.protocolConfig.commonAddress)}:${Number(ioa)}`;
+    }
+
+    indexPoint(point) {
+        this.pointsByIoa.set(this.pointMapKey(this.commonAddressForPoint(point), point.ioa), point);
+        if (!this.pointsByIoa.has(point.ioa)) this.pointsByIoa.set(point.ioa, point);
+    }
+
+    pointForIoa(ioa, commonAddress = null) {
+        if (commonAddress !== null && commonAddress !== undefined) {
+            const point = this.pointsByIoa.get(this.pointMapKey(commonAddress, ioa));
+            if (point) return point;
+        }
+        return this.pointsByIoa.get(ioa);
+    }
+
+    valueStateIdForPoint(point) {
+        return `${this.asduChannelForPoint(point)}.Value-Points.${point.ioa}`;
     }
 
     ivStateIdForPoint(point) {
-        return `IV-Points.${point.ioa}`;
+        return `${this.asduChannelForPoint(point)}.IV-Points.${point.ioa}`;
+    }
+
+    ntStateIdForPoint(point) {
+        return `${this.asduChannelForPoint(point)}.NT-Points.${point.ioa}`;
     }
 
     timeStateIdForPoint(point) {
-        return `Time-Points.${point.ioa}`;
+        return `${this.asduChannelForPoint(point)}.Time-Points.${point.ioa}`;
+    }
+
+    cotStateIdForPoint(point) {
+        return `${this.asduChannelForPoint(point)}.COT-Points.${point.ioa}`;
     }
 
     async createPointObjects() {
-        await this.setObjectNotExistsAsync("points", {
-            type: "channel",
-            common: { name: "IEC-104 data points" },
-            native: {},
-        });
-        await this.setObjectNotExistsAsync("IV-Points", {
-            type: "channel",
-            common: { name: "IEC-104 IV status points" },
-            native: {},
-        });
-        await this.setObjectNotExistsAsync("Time-Points", {
-            type: "channel",
-            common: { name: "IEC-104 time stamp points" },
-            native: {},
-        });
-
         for (const point of this.points) {
             if (!point.enabled) continue;
-            this.pointsByIoa.set(point.ioa, point);
+            this.indexPoint(point);
             const id = this.stateIdForPoint(point);
+            await this.ensurePointChannels(point);
             if (this.isOwnStateId(id)) {
                 await this.extendObjectAsync(id.replace(`${this.namespace}.`, ""), {
                     type: "state",
@@ -578,8 +650,26 @@ class Iec104Adapter extends utils.Adapter {
                 });
             }
             await this.ensureIvPointObject(point);
+            await this.ensureNtPointObject(point);
             await this.ensureTimePointObject(point);
+            await this.ensureCotPointObject(point);
             this.pointsByState.set(this.fullStateIdForPoint(point), point);
+        }
+    }
+
+    async ensurePointChannels(point) {
+        const asdu = this.asduChannelForPoint(point);
+        await this.setObjectNotExistsAsync(asdu, {
+            type: "channel",
+            common: { name: `${asdu} IEC-104 ASDU` },
+            native: { commonAddress: this.commonAddressForPoint(point) },
+        });
+        for (const folder of ["Value-Points", "IV-Points", "NT-Points", "Time-Points", "COT-Points"]) {
+            await this.setObjectNotExistsAsync(`${asdu}.${folder}`, {
+                type: "channel",
+                common: { name: `${asdu} ${folder}` },
+                native: { commonAddress: this.commonAddressForPoint(point) },
+            });
         }
     }
 
@@ -598,6 +688,21 @@ class Iec104Adapter extends utils.Adapter {
         });
     }
 
+    async ensureNtPointObject(point) {
+        await this.extendObjectAsync(this.ntStateIdForPoint(point), {
+            type: "state",
+            common: {
+                name: `${point.name} NT / not topical`,
+                type: "boolean",
+                role: "indicator",
+                read: true,
+                write: false,
+                def: false,
+            },
+            native: { ioa: point.ioa, source: "quality.nt" },
+        });
+    }
+
     async ensureTimePointObject(point) {
         await this.extendObjectAsync(this.timeStateIdForPoint(point), {
             type: "state",
@@ -610,6 +715,21 @@ class Iec104Adapter extends utils.Adapter {
                 def: "",
             },
             native: { ioa: point.ioa, source: "iec104.timestamp" },
+        });
+    }
+
+    async ensureCotPointObject(point) {
+        await this.extendObjectAsync(this.cotStateIdForPoint(point), {
+            type: "state",
+            common: {
+                name: `${point.name} cause of transmission`,
+                type: "string",
+                role: "text",
+                read: true,
+                write: false,
+                def: "",
+            },
+            native: { ioa: point.ioa, source: "iec104.cot" },
         });
     }
 
@@ -643,12 +763,14 @@ class Iec104Adapter extends utils.Adapter {
         const cfg = this.protocolConfig;
         this.log.debug(`Starting IEC-104 master client to ${cfg.host}:${cfg.port}`);
         const socket = net.createConnection({ host: cfg.host, port: cfg.port });
+        let connected = false;
         const connectTimer = setTimeout(() => {
             this.log.warn(`IEC-104 connect timeout to ${cfg.host}:${cfg.port}`);
             socket.destroy();
         }, cfg.connectTimeoutMs);
 
         socket.on("connect", () => {
+            connected = true;
             clearTimeout(connectTimer);
             this.connection = this.createConnection(socket, "master");
             this.connection.onStarted = conn => {
@@ -662,6 +784,13 @@ class Iec104Adapter extends utils.Adapter {
         socket.on("error", error => {
             clearTimeout(connectTimer);
             this.log.warn(`IEC-104 master socket error: ${error.message}`);
+        });
+        socket.on("close", () => {
+            clearTimeout(connectTimer);
+            if (!connected || !this.connection) {
+                void this.setStateAsync("info.connection", false, true);
+                if (this.protocolConfig.mode === "master" && this.protocolConfig.enabled) this.scheduleReconnect();
+            }
         });
     }
 
@@ -694,6 +823,10 @@ class Iec104Adapter extends utils.Adapter {
         conn.onClose = () => {
             void this.setStateAsync("info.connection", false, true);
             if (this.connection === conn) this.connection = null;
+            if (this.generalInterrogationTimer) {
+                clearInterval(this.generalInterrogationTimer);
+                this.generalInterrogationTimer = null;
+            }
             if (this.protocolConfig.mode === "master" && this.protocolConfig.enabled) {
                 this.scheduleReconnect();
             }
@@ -754,7 +887,7 @@ class Iec104Adapter extends utils.Adapter {
             }
 
             for (const obj of decoded.objects) {
-                await this.updatePointFromRemote(decoded.typeId, obj, decoded.commonAddress);
+                await this.updatePointFromRemote(decoded.typeId, obj, decoded.commonAddress, decoded.cot);
             }
         } catch (error) {
             this.log.warn(`Cannot handle IEC-104 ASDU: ${error.message}`);
@@ -791,7 +924,7 @@ class Iec104Adapter extends utils.Adapter {
         }
 
         for (const obj of decoded.objects) {
-            const point = this.pointsByIoa.get(obj.ioa);
+            const point = this.pointForIoa(obj.ioa, decoded.commonAddress);
             if (!point || !point.writable) {
                 this.log.warn(`Command for unknown or non-writable IOA ${obj.ioa}`);
                 continue;
@@ -810,7 +943,7 @@ class Iec104Adapter extends utils.Adapter {
         if (decoded.cot !== COT.ACTIVATION_CONFIRMATION) return;
 
         for (const obj of decoded.objects) {
-            const point = this.pointsByIoa.get(obj.ioa);
+            const point = this.pointForIoa(obj.ioa, decoded.commonAddress);
             if (!point) continue;
 
             const stateId = this.fullStateIdForPoint(point);
@@ -819,15 +952,15 @@ class Iec104Adapter extends utils.Adapter {
         }
     }
 
-    async updatePointFromRemote(typeId, obj, commonAddress) {
-        const point = this.pointsByIoa.get(obj.ioa) || {
+    async updatePointFromRemote(typeId, obj, commonAddress, cot) {
+        const point = this.pointForIoa(obj.ioa, commonAddress) || {
             enabled: true,
             name: `IOA ${obj.ioa}`,
             ioa: obj.ioa,
             type: TYPE_NAME[typeId] || `TYPE_${typeId}`,
             factor: 1,
             offset: 0,
-            stateId: `points.${obj.ioa}`,
+            stateId: "",
             writable: false,
             unit: "",
             commonAddress,
@@ -835,12 +968,13 @@ class Iec104Adapter extends utils.Adapter {
 
         point.commonAddress = commonAddress;
 
-        if (!this.pointsByIoa.has(obj.ioa)) {
-            this.pointsByIoa.set(obj.ioa, point);
+        if (!this.pointForIoa(obj.ioa, commonAddress)) {
+            this.indexPoint(point);
             this.pointsByState.set(this.fullStateIdForPoint(point), point);
             this.points.push(point);
             this.scheduleDiscoveredPointConfigUpdate(point);
-            await this.extendObjectAsync(`points.${obj.ioa}`, {
+            await this.ensurePointChannels(point);
+            await this.extendObjectAsync(this.valueStateIdForPoint(point), {
                 type: "state",
                 common: {
                     name: point.name,
@@ -853,7 +987,9 @@ class Iec104Adapter extends utils.Adapter {
                 native: { ioa: obj.ioa, iecType: point.type },
             });
             await this.ensureIvPointObject(point);
+            await this.ensureNtPointObject(point);
             await this.ensureTimePointObject(point);
+            await this.ensureCotPointObject(point);
             await this.subscribeForeignStatesAsync(this.fullStateIdForPoint(point));
         }
 
@@ -862,8 +998,11 @@ class Iec104Adapter extends utils.Adapter {
         await this.setForeignStateAsync(this.fullStateIdForPoint(point), value, true);
         const iv = this.decodeInvalidQuality(typeId, obj.data);
         if (iv !== null) await this.setStateAsync(this.ivStateIdForPoint(point), iv, true);
+        const nt = this.decodeNotTopicalQuality(typeId, obj.data);
+        if (nt !== null) await this.setStateAsync(this.ntStateIdForPoint(point), nt, true);
         const timestamp = this.decodeInformationTimestamp(typeId, obj.data, receiveTime);
         await this.setStateAsync(this.timeStateIdForPoint(point), timestamp.toISOString(), true);
+        await this.setStateAsync(this.cotStateIdForPoint(point), this.cotText(cot), true);
     }
 
     scheduleDiscoveredPointConfigUpdate(point) {
@@ -899,11 +1038,12 @@ class Iec104Adapter extends utils.Adapter {
                     name: String(point.name || `IOA ${point.ioa}`),
                     ioa: Number(point.ioa),
                     type: TYPE[point.type] ? point.type : "M_ME_NC_1",
-                    stateId: point.stateId || `points.${point.ioa}`,
+                    stateId: point.stateId || "",
                     writable: Boolean(point.writable),
                     unit: point.unit || "",
                     factor: Number(point.factor || 1),
                     offset: Number(point.offset || 0),
+                    commonAddress: Number(point.commonAddress || this.protocolConfig.commonAddress),
                 })),
             ];
 
@@ -1121,6 +1261,16 @@ class Iec104Adapter extends utils.Adapter {
     decodeInvalidQuality(typeId, data) {
         const quality = this.decodeQualityByte(typeId, data);
         return quality === null ? null : Boolean(quality & 0x80);
+    }
+
+    decodeNotTopicalQuality(typeId, data) {
+        const quality = this.decodeQualityByte(typeId, data);
+        return quality === null ? null : Boolean(quality & 0x40);
+    }
+
+    cotText(cot) {
+        const code = Number(cot);
+        return `${COT_TEXT[code] || "unknown cause of transmission"} (${code})`;
     }
 
     decodeInformationTimestamp(typeId, data, receiveTime = new Date()) {

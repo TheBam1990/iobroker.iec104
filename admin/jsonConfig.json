@@ -328,6 +328,19 @@
               "width": "100px"
             },
             {
+              "attr": "commonAddress",
+              "type": "number",
+              "title": {
+                "en": "ASDU",
+                "de": "ASDU"
+              },
+              "tooltip": {
+                "en": "Optional common address for this point. Empty uses the instance common address.",
+                "de": "Optionale Stationsadresse fuer diesen Punkt. Leer nutzt die Stationsadresse der Instanz."
+              },
+              "width": "100px"
+            },
+            {
               "attr": "type",
               "type": "select",
               "title": {
