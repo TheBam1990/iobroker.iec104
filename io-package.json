@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "news": {
+      "0.1.17": {
+        "en": "Reorganize states by ASDU with Value/IV/NT/Time/COT folders, expose NT quality and COT text states, and improve master reconnect handling",
+        "de": "Ordnet States nach ASDU mit Value/IV/NT/Time/COT-Ordnern, stellt NT-Quality und COT-Klartext bereit und verbessert den Master-Reconnect"
+      },
       "0.1.16": {
         "en": "Batch discovered data point persistence to avoid restarts during general interrogation and retry with learned common address on UNKNOWN_CA",
         "de": "Buendelt das Speichern entdeckter Datenpunkte, verhindert Neustarts waehrend der Generalabfrage und wiederholt bei UNKNOWN_CA mit erkannter Common Address"
