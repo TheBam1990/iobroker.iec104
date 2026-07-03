@@ -530,10 +530,19 @@ class Iec104Adapter extends utils.Adapter {
         return id.startsWith("points.") || id.startsWith("commands.") || id.startsWith("info.");
     }
 
+    ivStateIdForPoint(point) {
+        return `IV-Points.${point.ioa}`;
+    }
+
     async createPointObjects() {
         await this.setObjectNotExistsAsync("points", {
             type: "channel",
             common: { name: "IEC-104 data points" },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("IV-Points", {
+            type: "channel",
+            common: { name: "IEC-104 IV status points" },
             native: {},
         });
 
@@ -555,8 +564,24 @@ class Iec104Adapter extends utils.Adapter {
                     native: { ioa: point.ioa, iecType: point.type },
                 });
             }
+            await this.ensureIvPointObject(point);
             this.pointsByState.set(this.fullStateIdForPoint(point), point);
         }
+    }
+
+    async ensureIvPointObject(point) {
+        await this.extendObjectAsync(this.ivStateIdForPoint(point), {
+            type: "state",
+            common: {
+                name: `${point.name} IV / invalid`,
+                type: "boolean",
+                role: "indicator",
+                read: true,
+                write: false,
+                def: false,
+            },
+            native: { ioa: point.ioa, source: "quality.iv" },
+        });
     }
 
     async subscribeConfiguredStates() {
@@ -791,11 +816,14 @@ class Iec104Adapter extends utils.Adapter {
                 },
                 native: { ioa: obj.ioa, iecType: point.type },
             });
+            await this.ensureIvPointObject(point);
             await this.subscribeForeignStatesAsync(this.fullStateIdForPoint(point));
         }
 
         const value = this.applyScale(point, this.decodeInformationValue(typeId, obj.data));
         await this.setForeignStateAsync(this.fullStateIdForPoint(point), value, true);
+        const iv = this.decodeInvalidQuality(typeId, obj.data);
+        if (iv !== null) await this.setStateAsync(this.ivStateIdForPoint(point), iv, true);
     }
 
     async addDiscoveredPointToConfig(point) {
@@ -1030,6 +1058,45 @@ class Iec104Adapter extends utils.Adapter {
                 return data.toString("hex").toUpperCase();
             default:
                 return data.length ? data[0] : null;
+        }
+    }
+
+    decodeInvalidQuality(typeId, data) {
+        const quality = this.decodeQualityByte(typeId, data);
+        return quality === null ? null : Boolean(quality & 0x80);
+    }
+
+    decodeQualityByte(typeId, data) {
+        const index = this.qualityByteIndex(typeId);
+        if (index === null || data.length <= index) return null;
+        return data[index];
+    }
+
+    qualityByteIndex(typeId) {
+        const name = TYPE_NAME[typeId];
+        const meta = TYPE_META[name];
+        switch (meta ? meta.base : name) {
+            case "M_SP_NA_1":
+            case "M_DP_NA_1":
+                return 0;
+            case "M_ST_NA_1":
+                return 1;
+            case "M_ME_NA_1":
+            case "M_ME_NB_1":
+                return 2;
+            case "M_ME_NC_1":
+            case "M_BO_NA_1":
+            case "M_PS_NA_1":
+                return 4;
+            case "M_IT_NA_1":
+                return 4;
+            case "M_EP_TA_1":
+                return 0;
+            case "M_EP_TB_1":
+            case "M_EP_TC_1":
+                return 1;
+            default:
+                return null;
         }
     }
 

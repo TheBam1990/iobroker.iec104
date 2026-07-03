@@ -12,6 +12,7 @@ Adapter für die IEC-60870-5-104-Kommunikation in ioBroker. Der Adapter kann als
 - Generalabfrage `C_IC_NA_1` nach Verbindungsaufbau, manuell oder zyklisch.
 - Konfigurierbare Datenpunkttabelle mit IOA, Typ, State-ID, Einheit, Faktor und Offset.
 - Automatische Anlage unbekannter IOAs im Master-Modus, wenn neue Werte empfangen werden.
+- Separater Objektbereich `IV-Points` für das IEC-104-Qualitybit `IV` (`invalid` / nicht aktuell).
 - Schreiben von Befehls-ASDUs im Master-Modus, wenn konfigurierte ioBroker-States geändert werden.
 - Senden spontaner Werte im Slave-Modus, wenn konfigurierte ioBroker-States geändert werden.
 - TSV-Import und TSV-Export der Datenpunkttabelle über die Admin-Oberfläche.
@@ -30,14 +31,14 @@ Adapter für die IEC-60870-5-104-Kommunikation in ioBroker. Der Adapter kann als
 Lokales Testpaket installieren:
 
 ```bash
-iobroker url /path/to/iobroker.iec104-0.1.12.tgz
+iobroker url /path/to/iobroker.iec104-0.1.14.tgz
 iobroker add iec104
 ```
 
 Unter Windows zum Beispiel:
 
 ```powershell
-iobroker url C:\path\to\iobroker.iec104-0.1.12.tgz
+iobroker url C:\path\to\iobroker.iec104-0.1.14.tgz
 iobroker add iec104
 ```
 
@@ -65,6 +66,13 @@ Wichtige Einstellungen:
 - `Intervall der Generalabfrage`: `0` deaktiviert zyklische Generalabfragen.
 
 Empfangene Mess- und Meldedaten werden in die konfigurierten ioBroker-States geschrieben. Wenn eine unbekannte IOA empfangen wird, legt der Adapter unter `iec104.0.points.<IOA>` automatisch einen neuen State an und ergänzt die Datenpunkttabelle der Instanz.
+
+Zusätzlich legt der Adapter für jeden Datenpunkt einen Status unter `iec104.0.IV-Points.<IOA>` an. Dieser State zeigt das IEC-104-Qualitybit `IV`, sofern der IEC-104-Typ ein solches Quality-/Statusbit besitzt:
+
+- `false`: Wert ist laut IEC-104-Quality gültig/aktuell.
+- `true`: `IV` ist gesetzt, der Wert ist invalid bzw. nicht aktuell.
+
+Ausgewertet wird `IV` für alle vom Adapter unterstützten Melde-/Messwertklassen mit Quality-Bit, inklusive Einzel-/Doppelmeldungen, Stufen, Bitstrings, Messwerte, Zähler, gepackte Meldungen und Schutzereignisse mit oder ohne Zeitstempel. System-, Befehls- und Dateitypen haben kein einheitliches IEC-104-IV-Qualitybit; für diese Punkte wird kein künstlicher IV-Wert erzeugt.
 
 Wenn ein konfigurierter State im Master-Modus geändert wird, sendet der Adapter eine passende Befehls-ASDU an die Gegenstelle. Beispiel: Aus `M_SP_NA_1` wird beim Schreiben ein `C_SC_NA_1`.
 
@@ -115,6 +123,7 @@ Der Adapter legt diese allgemeinen States an:
 - `iec104.0.info.connection`: Verbindungsstatus.
 - `iec104.0.commands.general_interrogation`: Schalter zum manuellen Auslösen einer Generalabfrage im Master-Modus.
 - `iec104.0.points.<IOA>`: automatisch oder über die Datenpunkttabelle angelegte Datenpunkte.
+- `iec104.0.IV-Points.<IOA>`: IV-Status des Datenpunkts aus dem IEC-104-Qualitybyte.
 
 ## Unterstützte IEC-104-Typen
 
@@ -225,6 +234,14 @@ Unerwartete Werte:
 IEC 60870-5-104 wird in Automatisierungs- und Energiesystemen eingesetzt. Vor dem Anschluss an produktive Systeme sollten Konfiguration, Schreibrechte und Befehlsrichtung in einer Testumgebung validiert werden. Schreibfunktionen sollten nur für eindeutig benötigte IOAs aktiviert werden.
 
 ## Changelog
+
+### 0.1.14
+
+- IV-Auswertung auf alle unterstützten Melde-/Messwerttypen mit Quality-Bit erweitert.
+
+### 0.1.13
+
+- IEC-104-Qualitybit `IV` wird je Datenpunkt als `IV-Points.<IOA>` abgebildet.
 
 ### 0.1.12
 

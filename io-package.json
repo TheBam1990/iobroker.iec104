@@ -1,8 +1,20 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.11",
+    "version": "0.1.14",
     "news": {
+      "0.1.14": {
+        "en": "Extend IV quality decoding to all supported IEC-104 monitoring types with quality bits",
+        "de": "Erweitert die IV-Quality-Auswertung auf alle unterstuetzten IEC-104-Meldetypen mit Quality-Bits"
+      },
+      "0.1.13": {
+        "en": "Expose IEC-104 IV quality bit as separate IV-Points states for each data point",
+        "de": "Stellt das IEC-104-IV-Quality-Bit als separate IV-Points-States je Datenpunkt bereit"
+      },
+      "0.1.12": {
+        "en": "Declare Windows support and make npm package contents explicit",
+        "de": "Windows-Unterstuetzung deklariert und npm-Paketinhalt explizit festgelegt"
+      },
       "0.1.11": {
         "en": "Move normal IEC-104 operation diagnostics from info to debug logging",
         "de": "Normale IEC-104 Betriebsdiagnosen von Info- auf Debug-Logging umgestellt"
