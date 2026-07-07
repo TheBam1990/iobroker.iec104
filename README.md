@@ -40,6 +40,11 @@ The adapter also stores received points below `ASDU-<address>` so values from di
 
 ## Changelog
 
+### 0.1.19
+
+- Removed old unpublished changelog entries from `io-package.json`.
+- Added responsive metadata for the data point table.
+
 ### 0.1.18
 
 - Added repository metadata, CI release automation and adapter checker compatibility for public ioBroker publication.

@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.18",
+    "version": "0.1.19",
     "news": {
+      "0.1.19": {
+        "en": "Removes old unpublished changelog entries and fixes the responsive table metadata for adapter checker compatibility",
+        "de": "Entfernt alte unveroeffentlichte Changelog-Eintraege und korrigiert die responsive Tabellen-Metadaten fuer die Adapter-Checker-Kompatibilitaet",
+        "ru": "Удалены старые неопубликованные записи changelog и исправлены responsive-метаданные таблицы для adapter checker",
+        "pt": "Remove entradas antigas nao publicadas do changelog e corrige os metadados responsivos da tabela para o adapter checker",
+        "nl": "Verwijdert oude niet-gepubliceerde changelog-items en corrigeert responsieve tabelmetadata voor de adapter checker",
+        "fr": "Supprime les anciennes entrees de changelog non publiees et corrige les metadonnees responsives du tableau pour adapter checker",
+        "it": "Rimuove vecchie voci changelog non pubblicate e corregge i metadati responsive della tabella per adapter checker",
+        "es": "Elimina entradas antiguas no publicadas del changelog y corrige los metadatos responsivos de la tabla para adapter checker",
+        "pl": "Usuwa stare nieopublikowane wpisy changelog i poprawia responsywne metadane tabeli dla adapter checker",
+        "uk": "Видалено старі неопубліковані записи changelog і виправлено responsive-метадані таблиці для adapter checker",
+        "zh-cn": "移除未发布的旧 changelog 条目，并修复表格响应式元数据以兼容 adapter checker"
+      },
       "0.1.18": {
         "en": "Adds repository metadata, CI release automation and adapter checker compatibility for public ioBroker publication",
         "de": "Fuegt Repository-Metadaten, CI-Release-Automatisierung und Adapter-Checker-Kompatibilitaet fuer die oeffentliche ioBroker-Veroeffentlichung hinzu",
@@ -15,30 +28,6 @@
         "pl": "Dodaje metadane repozytorium, automatyzacje wydan CI i zgodnosc z adapter checker dla publikacji ioBroker",
         "uk": "Додано метадані репозиторію, автоматизацію CI-релізів і сумісність з adapter checker для публікації ioBroker",
         "zh-cn": "添加仓库元数据、CI 发布自动化以及用于 ioBroker 发布的 adapter checker 兼容性"
-      },
-      "0.1.17": {
-        "en": "Reorganize states by ASDU with Value/IV/NT/Time/COT folders, expose NT quality and COT text states, and improve master reconnect handling",
-        "de": "Ordnet States nach ASDU mit Value/IV/NT/Time/COT-Ordnern, stellt NT-Quality und COT-Klartext bereit und verbessert den Master-Reconnect"
-      },
-      "0.1.16": {
-        "en": "Batch discovered data point persistence to avoid restarts during general interrogation and retry with learned common address on UNKNOWN_CA",
-        "de": "Buendelt das Speichern entdeckter Datenpunkte, verhindert Neustarts waehrend der Generalabfrage und wiederholt bei UNKNOWN_CA mit erkannter Common Address"
-      },
-      "0.1.15": {
-        "en": "Add Time-Points states with IEC-104 CP24/CP56 timestamps or receive time fallback",
-        "de": "Ergaenzt Time-Points-States mit IEC-104-CP24/CP56-Zeitstempeln oder Empfangszeit als Fallback"
-      },
-      "0.1.14": {
-        "en": "Extend IV quality decoding to all supported IEC-104 monitoring types with quality bits",
-        "de": "Erweitert die IV-Quality-Auswertung auf alle unterstuetzten IEC-104-Meldetypen mit Quality-Bits"
-      },
-      "0.1.13": {
-        "en": "Expose IEC-104 IV quality bit as separate IV-Points states for each data point",
-        "de": "Stellt das IEC-104-IV-Quality-Bit als separate IV-Points-States je Datenpunkt bereit"
-      },
-      "0.1.12": {
-        "en": "Declare Windows support and make npm package contents explicit",
-        "de": "Windows-Unterstuetzung deklariert und npm-Paketinhalt explizit festgelegt"
       }
     },
     "titleLang": {
@@ -71,7 +60,6 @@
       "TheBam1990"
     ],
     "keywords": [
-      "ioBroker",
       "iec104",
       "iec-104",
       "iec60870",
