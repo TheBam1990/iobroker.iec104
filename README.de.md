@@ -172,6 +172,10 @@ Befehle werden nicht ausgefuehrt:
 
 ## Changelog
 
+### 0.1.25
+
+- Vervollstaendigt die Uebersetzungen der technischen ASDU-Auswahltexte.
+
 ### 0.1.24
 
 - Vervollstaendigt alle Uebersetzungen der Admin-Oberflaeche mit i18n-Dateien im Kurzformat.

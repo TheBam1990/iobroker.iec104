@@ -172,6 +172,10 @@ Commands are not executed:
 
 ## Changelog
 
+### 0.1.25
+
+- Completes translations for technical ASDU option labels.
+
 ### 0.1.24
 
 - Completes all Admin UI translations using short-format i18n files.

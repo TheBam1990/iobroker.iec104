@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.24",
+    "version": "0.1.25",
     "news": {
+      "0.1.25": {
+        "en": "Completes translations for technical ASDU option labels.",
+        "de": "Vervollstaendigt die Uebersetzungen der technischen ASDU-Auswahltexte.",
+        "ru": "Завершает переводы технических меток параметров ASDU.",
+        "pt": "Conclui as traducoes das etiquetas tecnicas das opcoes ASDU.",
+        "nl": "Voltooit de vertalingen van technische ASDU-optielabels.",
+        "fr": "Complete les traductions des libelles techniques des options ASDU.",
+        "it": "Completa le traduzioni delle etichette tecniche delle opzioni ASDU.",
+        "es": "Completa las traducciones de las etiquetas tecnicas de opciones ASDU.",
+        "pl": "Uzupelnia tlumaczenia technicznych etykiet opcji ASDU.",
+        "uk": "Завершує переклади технічних міток параметрів ASDU.",
+        "zh-cn": "完成技术 ASDU 选项标签的翻译。"
+      },
       "0.1.24": {
         "en": "Completes all Admin UI translations using short-format i18n files.",
         "de": "Vervollstaendigt alle Uebersetzungen der Admin-Oberflaeche mit i18n-Dateien im Kurzformat.",

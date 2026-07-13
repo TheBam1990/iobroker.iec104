@@ -40,6 +40,10 @@ The adapter also stores received points below `ASDU-<address>` so values from di
 
 ## Changelog
 
+### 0.1.25
+
+- Completed translations for technical ASDU option labels.
+
 ### 0.1.24
 
 - Completed all Admin UI translations using short-format i18n files.
