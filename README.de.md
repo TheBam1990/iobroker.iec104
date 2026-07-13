@@ -172,6 +172,10 @@ Befehle werden nicht ausgefuehrt:
 
 ## Changelog
 
+### 0.1.23
+
+- Veroeffentlicht die Datenpunktrollen-Korrektur mit npm-Provenance ueber den Standard-ioBroker-Release-Workflow.
+
 ### 0.1.22
 
 - Weist lesbaren und schreibbaren IEC-104-Datenpunkten gueltige ioBroker-Rollen zu.

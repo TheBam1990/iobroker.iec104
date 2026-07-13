@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iec104",
-    "version": "0.1.22",
+    "version": "0.1.23",
     "news": {
+      "0.1.23": {
+        "en": "Publishes the point-role fix with npm provenance using the standard ioBroker release workflow.",
+        "de": "Veroeffentlicht die Datenpunktrollen-Korrektur mit npm-Provenance ueber den Standard-ioBroker-Release-Workflow.",
+        "ru": "Публикует исправление ролей точек с npm provenance через стандартный процесс выпуска ioBroker.",
+        "pt": "Publica a correcao das funcoes dos pontos com proveniencia npm pelo fluxo de lancamento padrao do ioBroker.",
+        "nl": "Publiceert de correctie van puntrollen met npm-provenance via de standaard ioBroker-releaseworkflow.",
+        "fr": "Publie la correction des roles de points avec la provenance npm via le workflow de publication ioBroker standard.",
+        "it": "Pubblica la correzione dei ruoli dei punti con provenance npm tramite il workflow di rilascio ioBroker standard.",
+        "es": "Publica la correccion de roles de puntos con procedencia npm mediante el flujo de publicacion estandar de ioBroker.",
+        "pl": "Publikuje poprawke rol punktow z npm provenance przez standardowy proces wydan ioBroker.",
+        "uk": "Публікує виправлення ролей точок із npm provenance через стандартний процес випуску ioBroker.",
+        "zh-cn": "通过标准 ioBroker 发布工作流以 npm provenance 发布数据点角色修复。"
+      },
       "0.1.22": {
         "en": "Uses valid read/write roles for IEC-104 data points and restores the standard ioBroker release workflow.",
         "de": "Verwendet gueltige Lese-/Schreibrollen fuer IEC-104-Datenpunkte und stellt den Standard-ioBroker-Release-Workflow wieder her.",

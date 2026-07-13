@@ -40,6 +40,10 @@ The adapter also stores received points below `ASDU-<address>` so values from di
 
 ## Changelog
 
+### 0.1.23
+
+- Published the point-role fix with npm provenance through the standard ioBroker release workflow.
+
 ### 0.1.22
 
 - Assigned valid ioBroker roles to read-only and writable IEC-104 points.

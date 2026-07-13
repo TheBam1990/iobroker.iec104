@@ -172,6 +172,10 @@ Commands are not executed:
 
 ## Changelog
 
+### 0.1.23
+
+- Publishes the point-role fix with npm provenance through the standard ioBroker release workflow.
+
 ### 0.1.22
 
 - Assigns valid ioBroker roles to read-only and writable IEC-104 points.
